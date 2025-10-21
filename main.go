@@ -130,7 +130,7 @@ func main() {
 	}()
 
 	// graceful shutdown
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
 	log.Info("Shutdown Web Server...")
@@ -143,6 +143,7 @@ func main() {
 }
 
 func startJobs() {
+	jobs.StartHeartbeat()
 	go jobs.NewChecker().Run()
 	go jobs.NewPushSumChecker().Run()
 	go jobs.NewCommentChecker().Run()
@@ -155,6 +156,7 @@ func startJobs() {
 
 func init() {
 	// for initial app
+	jobs.RecoverFromLastHeartbeat()
 	jobs.NewPushSumKeyReplacer().Run()
 	jobs.NewMigrateBoard(map[string]string{}).Run()
 	jobs.NewTop().Run()

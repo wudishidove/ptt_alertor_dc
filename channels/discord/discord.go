@@ -38,6 +38,11 @@ func HandleMessage(session *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	// 忽略其他機器人的訊息，避免彼此干擾
+	if m.Author.Bot {
+		return
+	}
+
 	var responseText string
 	accountID := m.Author.ID
 	channelID := m.ChannelID
@@ -68,8 +73,29 @@ func HandleMessage(session *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// 確認使用者是否設定接收通知的頻道
+	// Check if bot is mentioned (only relevant for guild channels)
+	isBotMentioned := false
+	if accountType == accountTypeGuild {
+		for _, user := range m.Mentions {
+			if user.ID == session.State.User.ID {
+				isBotMentioned = true
+				break
+			}
+		}
+	}
+
+	// 檢查使用者是否需要設定訊息
 	if !CheckDiscordChannelExist(accountID) {
-		session.ChannelMessageSend(channelID, getDiscordNotifySetupMessage(accountType))
+		// 只在私人訊息或在公開頻道被提及時發送設定訊息
+		if accountType == accountTypeUser || isBotMentioned {
+			session.ChannelMessageSend(channelID, getDiscordNotifySetupMessage(accountType))
+		}
+		// 如果頻道未設定，則直接返回，因為後續指令需要設定頻道
+		return
+	}
+
+	// 如果 text 為空（例如只有空白），則不處理
+	if text == "" {
 		return
 	}
 

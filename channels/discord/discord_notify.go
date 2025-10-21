@@ -103,6 +103,17 @@ func Notify(channelID string, message string) error {
 		return err
 	}
 
+	messagePreview := message
+	if len(message) > 50 {
+		messagePreview = message[:50] + "..."
+	}
+
+	log.WithFields(log.Fields{
+		"channelID":       channelID,
+		"message_length":  len(message),
+		"message_preview": messagePreview,
+	}).Info("嘗試發送 Discord 通知")
+
 	_, err := discordSession.ChannelMessageSend(channelID, message)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -111,6 +122,10 @@ func Notify(channelID string, message string) error {
 		}).Error("Discord 通知失敗")
 		return err
 	}
+
+	log.WithFields(log.Fields{
+		"channelID": channelID,
+	}).Info("Discord 通知發送成功")
 
 	return nil
 }

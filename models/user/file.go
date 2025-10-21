@@ -1,4 +1,5 @@
-//+build !test
+//go:build !test
+// +build !test
 
 package user
 
@@ -25,11 +26,11 @@ func (File) List() (accounts []string) {
 		}).WithError(err).Error("Read Directory Error")
 	}
 	for _, file := range files {
-		_, ok := myutil.JSONFile(file)
+		fileName, ok := myutil.JSONFile(file)
 		if !ok {
 			continue
 		}
-		accounts = append(accounts, file.Name())
+		accounts = append(accounts, fileName)
 	}
 	return accounts
 }
@@ -50,7 +51,7 @@ func (File) Save(account string, user interface{}) error {
 		return err
 	}
 
-	if err := ioutil.WriteFile(userFile, uJSON, 664); err != nil {
+	if err := ioutil.WriteFile(userFile, uJSON, 0664); err != nil {
 		log.WithFields(log.Fields{
 			"file":    userFile,
 			"doc":     uJSON,
@@ -68,7 +69,7 @@ func (File) Update(account string, user interface{}) error {
 		myutil.LogJSONEncode(err, user)
 		return err
 	}
-	if err := ioutil.WriteFile(userFile, uJSON, 664); err != nil {
+	if err := ioutil.WriteFile(userFile, uJSON, 0664); err != nil {
 		log.WithFields(log.Fields{
 			"file":    userFile,
 			"doc":     uJSON,
@@ -87,6 +88,10 @@ func (File) Find(account string, user *User) {
 			"file":    userFile,
 			"runtime": myutil.BasicRuntimeInfo(),
 		}).WithError(err).Error("Read File Error")
+		return
+	}
+	if len(uJSON) == 0 {
+		return
 	}
 	if err := json.Unmarshal(uJSON, &user); err != nil {
 		myutil.LogJSONDecode(err, uJSON)

@@ -1,5 +1,5 @@
 @echo off
-cd /d %~dp0
+cd d %~dp0
 REM 設定編碼為 UTF-8
 chcp 65001
 
@@ -8,11 +8,11 @@ REM 使用者資料儲存：file=檔案儲存, redis=Redis 儲存（預設）
 set USER_STORE=file
 
 REM Redis 設定
-set REDIS_ENDPOINT=localhost
+set REDIS_HOST=localhost
 set REDIS_PORT=6379
 
 REM Discord Bot 設定
-set DISCORD_TOKEN=""
+set DISCORD_TOKEN=
 
 REM line Bot 設定
 set LINE_CLIENT_SECRET=0
@@ -27,29 +27,25 @@ set AUTH_USER=admin
 set AUTH_PW=password
 
 REM 應用程式設定
-set APP_HOST=http://localhost:9090
+set APP_HOST=httplocalhost9090
 set BOARD_HIGH=gossiping,beauty,c_chat
 
 REM ====== 更新相依套件 ======
 echo 正在更新相依套件...
 go mod tidy
 
-REM ====== 檢查 Redis 是否運行（啟用持久化）======
+REM ====== 檢查 Redis 是否運行 ======
 echo 檢查 Redis 服務狀態...
-set "REDIS_DIR=%~dp0redis-data"
-if not exist "%REDIS_DIR%" (
-    mkdir "%REDIS_DIR%"
-)
-redis-cli -h %REDIS_ENDPOINT% -p %REDIS_PORT% ping >nul 2>&1
+redis-cli ping nul 2&1
 if %errorlevel% neq 0 (
-    echo Redis 未運行，正在啟動 Redis（AOF 持久化）...
-    start /B redis-server --port %REDIS_PORT% --dir "%REDIS_DIR%" --appendonly yes --save 60 1
-    timeout /t 2 /nobreak >nul
+    echo Redis 未運行，正在啟動 Redis...
+    start B redis-server
+    timeout t 2 nobreak nul
 )
 
 REM ====== 啟動應用程式 ======
 echo 正在啟動 PTT Alertor...
-echo 應用程式將在 http://localhost:9090 運行
+echo 應用程式將在 httplocalhost9090 運行
 echo 按 Ctrl+C 可以停止程式
 
 REM 運行應用程式
