@@ -3,7 +3,8 @@
     "allow": [
       "Bash(test:*)",
       "Bash(redis-cli:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(go build:*)"
     ],
     "deny": [],
     "ask": []

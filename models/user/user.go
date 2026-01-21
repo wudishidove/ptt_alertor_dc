@@ -25,7 +25,9 @@ type Profile struct {
 	Messenger        string `json:"messenger"`
 	Telegram         string `json:"telegram"`
 	TelegramChat     int64  `json:"telegramChat"`
-	DiscordChannelID string `json:"discordChannelID"`
+	Discord          *DiscordIdentity `json:"discord,omitempty"`
+	// LegacyDiscordChannelID is kept for backward compatibility with old JSON data.
+	LegacyDiscordChannelID string `json:"discordChannelID,omitempty"`
 }
 
 type Driver interface {
@@ -63,7 +65,7 @@ func (u User) Save() error {
 		return ErrAccountEmpty
 	}
 
-	if u.Profile.Email == "" && u.Profile.Line == "" && u.Profile.Messenger == "" && u.Profile.Telegram == "" && u.Profile.DiscordChannelID == "" {
+	if u.Profile.Email == "" && u.Profile.Line == "" && u.Profile.Messenger == "" && u.Profile.Telegram == "" && u.Profile.DiscordChannelID() == "" {
 		return errors.New("one of Email, Line, Messenger, Telegram or Discord have to be filled")
 	}
 	u.CreateTime = time.Now()
@@ -88,5 +90,38 @@ func (u User) Update() error {
 
 func (u User) Find(account string) User {
 	u.drive.Find(account, &u)
+	u.Profile.normalizeDiscord()
 	return u
+}
+
+// DiscordIdentity stores Discord specific routing metadata.
+type DiscordIdentity struct {
+	UserID      string `json:"userId"`
+	ChannelID   string `json:"channelId"`
+	ChannelType string `json:"channelType"`
+	GuildID     string `json:"guildId,omitempty"`
+}
+
+func (p *Profile) normalizeDiscord() {
+	if p.Discord == nil && p.LegacyDiscordChannelID != "" {
+		p.Discord = &DiscordIdentity{
+			ChannelID:   p.LegacyDiscordChannelID,
+			ChannelType: "legacy",
+		}
+		p.LegacyDiscordChannelID = ""
+	}
+}
+
+func (p Profile) DiscordChannelID() string {
+	if p.Discord != nil && p.Discord.ChannelID != "" {
+		return p.Discord.ChannelID
+	}
+	return p.LegacyDiscordChannelID
+}
+
+func (p Profile) DiscordGuildID() string {
+	if p.Discord != nil {
+		return p.Discord.GuildID
+	}
+	return ""
 }

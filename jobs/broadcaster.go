@@ -77,6 +77,10 @@ func (bc Broadcaster) sendTelegram(u *user.User) {
 }
 
 func (bc Broadcaster) sendDiscord(u *user.User) {
-	bc.Profile.DiscordChannelID = u.Profile.DiscordChannelID
+	if u.Profile.Discord == nil || u.Profile.DiscordChannelID() == "" {
+		return
+	}
+	discordInfo := *u.Profile.Discord
+	bc.Profile.Discord = &discordInfo
 	ckCh <- bc
 }

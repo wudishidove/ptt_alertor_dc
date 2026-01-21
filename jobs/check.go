@@ -35,7 +35,8 @@ func isMessageSent(c check) bool {
 	// 使用通知的內容、用戶ID和平台創建一個唯一哈希
 	content := c.String()
 	cr := c.Self()
-	key := cr.Profile.Account + "_" + cr.Profile.DiscordChannelID + "_" + content
+	channelID := cr.Profile.DiscordChannelID()
+	key := cr.Profile.Account + "_" + channelID + "_" + content
 	hash := md5.Sum([]byte(key))
 	hashStr := hex.EncodeToString(hash[:])
 
@@ -94,6 +95,7 @@ func sendMessage(c check) {
 
 	cr := c.Self()
 	account := cr.Profile.Account
+	channelID := cr.Profile.DiscordChannelID()
 	var platform string
 
 	if cr.Profile.Line != "" && cr.Profile.LineAccessToken == "" {
@@ -123,7 +125,7 @@ func sendMessage(c check) {
 		platform = "telegram"
 		sendTelegram(c)
 	}
-	if cr.Profile.DiscordChannelID != "" {
+	if channelID != "" {
 		platform = "discord"
 		sendDiscord(c)
 	}
@@ -170,6 +172,7 @@ func sendTelegram(c check) {
 
 func sendDiscord(c check) {
 	cr := c.Self()
+	channelID := cr.Profile.DiscordChannelID()
 	content := c.String()
 	contentPreview := content
 	if len(content) > 50 {
@@ -178,12 +181,12 @@ func sendDiscord(c check) {
 
 	log.WithFields(log.Fields{
 		"account":         cr.Profile.Account,
-		"channelID":       cr.Profile.DiscordChannelID,
+		"channelID":       channelID,
 		"board":           cr.board,
 		"subType":         cr.subType,
 		"word":            cr.word,
 		"content_preview": contentPreview,
 	}).Info("準備發送 Discord 通知")
 
-	discord.Notify(cr.Profile.DiscordChannelID, content)
+	discord.Notify(channelID, content)
 }

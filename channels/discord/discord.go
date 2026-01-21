@@ -44,9 +44,10 @@ func HandleMessage(session *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	var responseText string
-	accountID := m.Author.ID
+	userID := m.Author.ID
 	channelID := m.ChannelID
 	guildID := ""
+	accountKey := discordAccountKey(channelID)
 
 	// 檢查是否為伺服器頻道
 	if m.GuildID != "" {
@@ -63,7 +64,7 @@ func HandleMessage(session *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// 設定接收通知的頻道
 	if strings.EqualFold(text, "notify") {
-		err := SaveUserChannel(accountID, channelID)
+		err := SaveUserChannel(userID, channelID, accountType, guildID)
 		if err != nil {
 			session.ChannelMessageSend(channelID, "設定通知頻道失敗，請稍後再試。")
 			return
@@ -85,7 +86,7 @@ func HandleMessage(session *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// 檢查使用者是否需要設定訊息
-	if !CheckDiscordChannelExist(accountID) {
+	if !CheckDiscordChannelExist(channelID) {
 		// 只在私人訊息或在公開頻道被提及時發送設定訊息
 		if accountType == accountTypeUser || isBotMentioned {
 			session.ChannelMessageSend(channelID, getDiscordNotifySetupMessage(accountType))
@@ -105,7 +106,7 @@ func HandleMessage(session *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	responseText = command.HandleCommand(text, accountID, accountType == accountTypeUser)
+	responseText = command.HandleCommand(text, accountKey, accountType == accountTypeUser)
 
 	if responseText == "" {
 		return
@@ -148,32 +149,25 @@ func HandleLeave(session *discordgo.Session, event *discordgo.GuildDelete) {
 	}).Info("Discord Bot left a guild")
 
 	// 停用該伺服器所有使用者的通知
-	// users := models.User().FindByGuildID(event.Guild.ID) // Original incorrect line
-	allUsers := models.User().All() // Get all users
+	allUsers := models.User().All()
 	for _, u := range allUsers {
-		if u.Profile.DiscordChannelID != "" { // Check if user has a Discord channel set
-			channel, err := session.Channel(u.Profile.DiscordChannelID)
-			if err != nil {
-				// Log error: maybe channel deleted or bot lost access?
-				log.WithError(err).WithFields(log.Fields{
-					"UserID":    u.Profile.Account,
-					"ChannelID": u.Profile.DiscordChannelID,
-				}).Warn("Failed to get channel info during HandleLeave")
-				continue // Skip this user
-			}
-			// Check if the channel's GuildID matches the one the bot left
-			if channel.GuildID == event.Guild.ID {
-				log.WithFields(log.Fields{
-					"UserID":  u.Profile.Account,
-					"GuildID": event.Guild.ID,
-				}).Info("Disabling user due to bot leaving guild")
-				u.Enable = false
-				if err := u.Update(); err != nil {
-					log.WithError(err).WithFields(log.Fields{
-						"UserID": u.Profile.Account,
-					}).Error("Failed to disable user during HandleLeave")
-				}
-			}
+		channelID := u.Profile.DiscordChannelID()
+		if channelID == "" {
+			continue
+		}
+		if u.Profile.DiscordGuildID() != event.Guild.ID {
+			continue
+		}
+		log.WithFields(log.Fields{
+			"UserID":    u.Profile.Account,
+			"GuildID":   event.Guild.ID,
+			"ChannelID": channelID,
+		}).Info("Disabling user due to bot leaving guild")
+		u.Enable = false
+		if err := u.Update(); err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"UserID": u.Profile.Account,
+			}).Error("Failed to disable user during HandleLeave")
 		}
 	}
 }

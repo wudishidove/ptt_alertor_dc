@@ -9,6 +9,11 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/Ptt-Alertor/ptt-alertor/models"
+	"github.com/Ptt-Alertor/ptt-alertor/models/author"
+	"github.com/Ptt-Alertor/ptt-alertor/models/keyword"
+	"github.com/Ptt-Alertor/ptt-alertor/models/pushsum"
+	"github.com/Ptt-Alertor/ptt-alertor/models/subscription"
+	"github.com/Ptt-Alertor/ptt-alertor/models/user"
 )
 
 type Config struct {
@@ -58,41 +63,51 @@ func init() {
 	log.Info("Discord 機器人已連接")
 }
 
-// SaveUserChannel 儲存使用者的 Discord 頻道 ID
-func SaveUserChannel(userID string, channelID string) error {
-	u := models.User().Find(userID)
+// SaveUserChannel 儲存使用者與頻道對應
+func SaveUserChannel(userID, channelID, channelType, guildID string) error {
+	account := discordAccountKey(channelID)
+	u := models.User().Find(account)
+	isNewAccount := u.Profile.Account == ""
 
-	// 如果用戶不存在，創建新用戶
-	if u.Profile.Account == "" {
-		u.Profile.Account = userID
-		u.Profile.Type = "discord"
-		u.Profile.DiscordChannelID = channelID // 在創建時就設定 Discord 頻道 ID
-		u.Enable = true
-
-		// 保存新用戶
-		if err := u.Save(); err != nil {
-			log.WithError(err).Error("創建新用戶失敗")
+	if isNewAccount {
+		migrated, err := migrateLegacyDiscordUser(userID, account)
+		if err != nil {
 			return err
 		}
-		return nil // 如果是新用戶，創建成功後直接返回
+		if migrated != nil {
+			u = *migrated
+		} else {
+			u.Profile.Account = account
+			u.Profile.Type = "discord"
+		}
 	}
 
-	// 如果用戶已存在，更新 Discord 頻道 ID
-	u.Profile.DiscordChannelID = channelID
-	if err := u.Update(); err != nil {
-		log.WithError(err).Error("更新使用者 Discord 頻道失敗")
-		return err
+	u.Enable = true
+	u.Profile.Type = "discord"
+	u.Profile.Discord = &user.DiscordIdentity{
+		UserID:      userID,
+		ChannelID:   channelID,
+		ChannelType: channelType,
+		GuildID:     guildID,
 	}
-	return nil
+
+	var err error
+	if isNewAccount {
+		err = u.Save()
+	} else {
+		err = u.Update()
+	}
+	if err != nil {
+		log.WithError(err).Error("儲存 Discord 頻道資訊失敗")
+	}
+	return err
 }
 
 // CheckDiscordChannelExist 檢查用戶是否已設定 Discord 頻道
-func CheckDiscordChannelExist(userID string) bool {
-	u := models.User().Find(userID)
-	if u.Profile.DiscordChannelID == "" {
-		return false
-	}
-	return true
+func CheckDiscordChannelExist(channelID string) bool {
+	account := discordAccountKey(channelID)
+	u := models.User().Find(account)
+	return u.Profile.Account != ""
 }
 
 // Notify 發送 Discord 通知
@@ -134,5 +149,98 @@ func Notify(channelID string, message string) error {
 func Close() {
 	if discordSession != nil {
 		discordSession.Close()
+	}
+}
+
+const discordAccountPrefix = "discord-"
+
+func discordAccountKey(channelID string) string {
+	return discordAccountPrefix + channelID
+}
+
+func migrateLegacyDiscordUser(userID, newAccount string) (*user.User, error) {
+	if userID == "" || userID == newAccount {
+		return nil, nil
+	}
+
+	legacy := models.User().Find(userID)
+	if legacy.Profile.Account == "" {
+		return nil, nil
+	}
+
+	oldAccount := legacy.Profile.Account
+	newUser := legacy
+	transferDiscordSubscriptions(oldAccount, newAccount, newUser.Subscribes)
+	newUser.Profile.Account = newAccount
+	disableLegacyDiscordAccount(oldAccount)
+	return &newUser, nil
+}
+
+func transferDiscordSubscriptions(oldAccount, newAccount string, subs subscription.Subscriptions) {
+	if oldAccount == "" || newAccount == "" || oldAccount == newAccount {
+		return
+	}
+
+	for _, sub := range subs {
+		if len(sub.Keywords) > 0 {
+			if err := keyword.AddSubscriber(sub.Board, newAccount); err != nil {
+				log.WithError(err).Warn("migrate keyword subscriber failed")
+			}
+			if err := keyword.RemoveSubscriber(sub.Board, oldAccount); err != nil {
+				log.WithError(err).Warn("cleanup keyword subscriber failed")
+			}
+		}
+		if len(sub.Authors) > 0 {
+			if err := author.AddSubscriber(sub.Board, newAccount); err != nil {
+				log.WithError(err).Warn("migrate author subscriber failed")
+			}
+			if err := author.RemoveSubscriber(sub.Board, oldAccount); err != nil {
+				log.WithError(err).Warn("cleanup author subscriber failed")
+			}
+		}
+		if len(sub.Articles) > 0 {
+			for _, code := range sub.Articles {
+				a := models.Article()
+				a.Code = code
+				if err := a.AddSubscriber(newAccount); err != nil {
+					log.WithError(err).Warn("migrate article subscriber failed")
+				}
+				if err := a.RemoveSubscriber(oldAccount); err != nil {
+					log.WithError(err).Warn("cleanup article subscriber failed")
+				}
+			}
+		}
+		if sub.PushSum != subscription.EmptyPushSum {
+			if !pushsum.Exist(sub.Board) {
+				if err := pushsum.Add(sub.Board); err != nil {
+					log.WithError(err).Warn("add pushsum board failed during migrate")
+				}
+			}
+			if err := pushsum.AddSubscriber(sub.Board, newAccount); err != nil {
+				log.WithError(err).Warn("migrate pushsum subscriber failed")
+			}
+			if err := pushsum.RemoveSubscriber(sub.Board, oldAccount); err != nil {
+				log.WithError(err).Warn("cleanup pushsum subscriber failed")
+			}
+			if err := pushsum.DelDiffList(oldAccount, sub.Board, "up"); err != nil {
+				log.WithError(err).Warn("cleanup pushsum up diff failed")
+			}
+			if err := pushsum.DelDiffList(oldAccount, sub.Board, "down"); err != nil {
+				log.WithError(err).Warn("cleanup pushsum down diff failed")
+			}
+		}
+	}
+}
+
+func disableLegacyDiscordAccount(account string) {
+	legacy := models.User().Find(account)
+	if legacy.Profile.Account == "" {
+		return
+	}
+	legacy.Enable = false
+	legacy.Subscribes = nil
+	legacy.Profile.Discord = nil
+	if err := legacy.Update(); err != nil {
+		log.WithError(err).WithField("account", account).Warn("disable legacy Discord account failed")
 	}
 }
