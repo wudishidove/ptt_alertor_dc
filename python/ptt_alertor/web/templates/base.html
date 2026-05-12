@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <title>{% block title %}PTT Alertor{% endblock %}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+           margin: 0; background: #f6f7f9; color: #222; }
+    header { background: #2c3e50; color: #fff; padding: 14px 24px; display: flex;
+             align-items: center; gap: 24px; }
+    header h1 { font-size: 18px; font-weight: 600; margin: 0; }
+    nav a { color: #ecf0f1; text-decoration: none; margin-right: 16px; font-size: 14px; }
+    nav a:hover { text-decoration: underline; }
+    main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 8px; padding: 18px 22px; margin-bottom: 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+             gap: 12px; }
+    .stat { background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 6px; padding: 12px 14px; }
+    .stat .v { font-size: 22px; font-weight: 600; color: #2c3e50; }
+    .stat .l { font-size: 12px; color: #6a737d; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eaecef; vertical-align: top; }
+    th { background: #f6f8fa; font-weight: 600; color: #444; }
+    tr:hover td { background: #fafbfc; }
+    code { background: #f6f8fa; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    .pill { display: inline-block; background: #e3f2fd; color: #1565c0; padding: 2px 8px;
+            border-radius: 12px; font-size: 11px; margin-right: 4px; }
+    .pill.disabled { background: #ffebee; color: #c62828; }
+    .muted { color: #6a737d; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🦊 PTT Alertor</h1>
+    <nav>
+      <a href="/">首頁</a>
+      <a href="/users">使用者</a>
+      <a href="/boards">看板</a>
+    </nav>
+  </header>
+  <main>{% block body %}{% endblock %}</main>
+</body>
+</html>

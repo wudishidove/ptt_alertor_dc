@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}PTT Alertor — 使用者{% endblock %}
+{% block body %}
+<div class="card">
+  <h2 style="margin-top:0">總覽</h2>
+  <div class="stats">
+    <div class="stat"><div class="v">{{ stats.total }}</div><div class="l">總人數</div></div>
+    <div class="stat"><div class="v">{{ stats.enabled }}</div><div class="l">啟用</div></div>
+    <div class="stat"><div class="v">{{ stats.disabled }}</div><div class="l">停用</div></div>
+    <div class="stat"><div class="v">{{ stats.idle }}</div><div class="l">無訂閱</div></div>
+    <div class="stat"><div class="v">{{ stats.boards }}</div><div class="l">總訂閱看板數</div></div>
+    <div class="stat"><div class="v">{{ stats.keywords }}</div><div class="l">關鍵字數</div></div>
+    <div class="stat"><div class="v">{{ stats.authors }}</div><div class="l">作者數</div></div>
+    <div class="stat"><div class="v">{{ stats.articles }}</div><div class="l">追蹤文章</div></div>
+    <div class="stat"><div class="v">{{ stats.pushsum }}</div><div class="l">推噓文監控</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">使用者列表</h2>
+  {% if users %}
+  <table>
+    <thead>
+      <tr>
+        <th>狀態</th>
+        <th>Account / Channel</th>
+        <th>訂閱看板</th>
+        <th>最後更新</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>
+          {% if u.enable %}
+          <span class="pill">enabled</span>
+          {% else %}
+          <span class="pill disabled">disabled</span>
+          {% endif %}
+        </td>
+        <td>
+          <code>{{ u.profile.account }}</code><br />
+          <span class="muted">channel: {{ u.channel_id or "-" }}</span><br />
+          {% if u.profile.discord %}
+          <span class="muted">guild: {{ u.profile.discord.guild_id or "DM" }} / type: {{ u.profile.discord.channel_type }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if u.subscribes %}
+            {% for s in u.subscribes %}
+              <strong>{{ s.board }}</strong>
+              {% if s.keywords %} <span class="muted">kw:</span> {{ s.keywords|join(", ") }}{% endif %}
+              {% if s.authors %} <span class="muted">author:</span> {{ s.authors|join(", ") }}{% endif %}
+              {% if s.push_sum.up %} <span class="muted">推≥{{ s.push_sum.up }}</span>{% endif %}
+              {% if s.push_sum.down %} <span class="muted">噓≤{{ s.push_sum.down }}</span>{% endif %}
+              {% if s.articles %} <span class="muted">文章: {{ s.articles|length }}</span>{% endif %}
+              <br />
+            {% endfor %}
+          {% else %}
+            <span class="muted">無訂閱</span>
+          {% endif %}
+        </td>
+        <td>{{ u.update_time.strftime("%Y-%m-%d %H:%M") }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">尚無使用者。請在 Discord 任一頻道輸入 <code>notify</code> 完成綁定。</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}PTT Alertor — 首頁{% endblock %}
+{% block body %}
+<div class="card">
+  <h2 style="margin-top:0">系統狀態</h2>
+  <div class="stats">
+    <div class="stat">
+      <div class="v">{{ "已連線" if status.discord_ready else "尚未連線" }}</div>
+      <div class="l">Discord</div>
+    </div>
+    <div class="stat">
+      <div class="v">{{ uptime_seconds // 3600 }} 時 {{ (uptime_seconds % 3600) // 60 }} 分</div>
+      <div class="l">Uptime</div>
+    </div>
+    <div class="stat">
+      <div class="v">{{ user_count }}</div>
+      <div class="l">使用者數</div>
+    </div>
+    <div class="stat">
+      <div class="v">{{ board_count }}</div>
+      <div class="l">監控看板數</div>
+    </div>
+    <div class="stat">
+      <div class="v">{{ article_track_count }}</div>
+      <div class="l">追蹤文章數</div>
+    </div>
+    <div class="stat">
+      <div class="v">{{ status.crawler_errors }}</div>
+      <div class="l">爬蟲錯誤累計</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">啟動資訊</h2>
+  <table>
+    <tr><th>Started At</th><td>{{ status.started_at }}</td></tr>
+    <tr><th>Last Heartbeat</th><td>{{ status.last_heartbeat or "尚未寫入" }}</td></tr>
+    <tr><th>Web Bind</th><td>{{ settings.web_host }}:{{ settings.web_port }}</td></tr>
+    <tr><th>Recovery Window</th><td>{{ settings.recovery_max_days }} days</td></tr>
+    <tr><th>Dedup TTL</th><td>{{ settings.dedup_ttl_seconds }} seconds</td></tr>
+  </table>
+</div>
+{% endblock %}

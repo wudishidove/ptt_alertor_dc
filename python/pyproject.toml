@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ptt-alertor"
+version = "0.1.0"
+description = "PTT article notification bot for Discord (Mac background daemon)"
+requires-python = ">=3.11"
+dependencies = [
+    "discord.py>=2.4",
+    "aiohttp>=3.9",
+    "aiohttp-jinja2>=1.6",
+    "Jinja2>=3.1",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "PyYAML>=6.0",
+    "python-dotenv>=1.0",
+    "certifi>=2024.2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+ptt-alertor = "ptt_alertor.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ptt_alertor*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
